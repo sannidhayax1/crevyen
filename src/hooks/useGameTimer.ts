@@ -3,7 +3,8 @@
  *
  * Manages the elapsed-time ticker for the game.
  *
- * - Starts ticking when phase is PLAYING or CARD_FLIPPING.
+ * - Starts ticking after the first card flip.
+ * - Updates while phase is PLAYING or CARD_FLIPPING.
  * - Stops (and records final time) when phase becomes WIN.
  * - Pauses while phase is CHECKING_MATCH (the reveal window).
  * - The intervalId ref is stable across re-renders; clearing it on
@@ -17,13 +18,14 @@ interface UseGameTimerOptions {
   phase: GamePhase;
   startTime: number;
   dispatch: (action: { type: 'TICK'; elapsedMs: number }) => void;
+  enabled: boolean;
 }
 
-export function useGameTimer({ phase, startTime, dispatch }: UseGameTimerOptions): void {
+export function useGameTimer({ phase, startTime, dispatch, enabled }: UseGameTimerOptions): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const shouldTick = phase === 'PLAYING' || phase === 'CARD_FLIPPING';
+    const shouldTick = enabled && (phase === 'PLAYING' || phase === 'CARD_FLIPPING');
 
     if (shouldTick) {
       // Clear any pre-existing interval before starting a new one
@@ -47,5 +49,5 @@ export function useGameTimer({ phase, startTime, dispatch }: UseGameTimerOptions
         intervalRef.current = null;
       }
     };
-  }, [phase, startTime, dispatch]);
+  }, [phase, startTime, dispatch, enabled]);
 }

@@ -37,13 +37,19 @@ export default function App() {
     currentLevel: DifficultyLevel;
   } | null>(null);
   const [sessions, setSessions] = useState(() => loadSessions());
+  const [timerStarted, setTimerStarted] = useState(false);
 
   // ── Timer hook ─────────────────────────────────────────────────────────────
   const stableDispatch = useCallback(
     (action: { type: 'TICK'; elapsedMs: number }) => dispatch(action),
     [],
   );
-  useGameTimer({ phase: gameState.phase, startTime: startTimeRef.current, dispatch: stableDispatch });
+  useGameTimer({
+    phase: gameState.phase,
+    startTime: startTimeRef.current,
+    dispatch: stableDispatch,
+    enabled: timerStarted,
+  });
 
   // ── Handle WIN phase ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -71,13 +77,17 @@ export default function App() {
     if (phase === 'WIN') return;
     if (phase === 'CHECKING_MATCH') return; // 3rd-click guard (also in reducer)
 
+    const card = cards[index];
+    if (!card || card.matched || card.flipped) return;
+    if (!timerStarted) {
+      startTimeRef.current = Date.now();
+      setTimerStarted(true);
+    }
+
     dispatch({ type: 'FLIP_CARD', index });
 
     // Schedule resolution after second flip
-    const card = cards[index];
     if (
-      !card.matched &&
-      !card.flipped &&
       (phase === 'CARD_FLIPPING') &&
       flippedIndices.length === 1
     ) {
@@ -91,7 +101,7 @@ export default function App() {
         dispatch({ type: isMatch ? 'RESOLVE_MATCH' : 'RESOLVE_MISMATCH' });
       }, delay);
     }
-  }, [gameState]);
+  }, [gameState, timerStarted]);
 
   // ── Restart handler — clears pending timer before creating new game ─────────
   const handleRestart = useCallback(
@@ -103,6 +113,7 @@ export default function App() {
       }
       setWinData(null);
       startTimeRef.current = Date.now();
+      setTimerStarted(false);
       dispatch({ type: 'RESTART', seed, difficultyLevel });
     },
     [],
